@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aston Martin Evolution | D3.js</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    :root {
+      --bg: #07110f;
+      --bg-2: #0d1b18;
+      --panel: rgba(12, 28, 24, 0.92);
+      --panel-border: rgba(110, 240, 189, 0.14);
+      --text: #edf5f2;
+      --muted: #9db8b0;
+      --accent: #00a676;
+      --accent-2: #7af0c0;
+      --grid: rgba(255,255,255,0.08);
+      --shadow: 0 18px 60px rgba(0,0,0,0.35);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(0,166,118,0.16), transparent 30%),
+        radial-gradient(circle at bottom right, rgba(122,240,192,0.10), transparent 28%),
+        linear-gradient(180deg, #07110f 0%, #091614 100%);
+      color: var(--text);
+      padding: 28px;
+    }
+
+    .page {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 24px;
+    }
+
+    .hero, .panel {
+      border: 1px solid var(--panel-border);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+      border-radius: 28px;
+    }
+
+    .hero {
+      grid-column: 1 / -1;
+      padding: 28px 30px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      right: -60px;
+      bottom: -60px;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(0,166,118,0.22), transparent 70%);
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      color: var(--accent-2);
+      text-transform: uppercase;
+      letter-spacing: .14em;
+      font-size: .8rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 4vw, 3.7rem);
+      letter-spacing: -0.04em;
+      line-height: 1;
+      margin-bottom: 14px;
+    }
+
+    .hero p, .muted {
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .chart-panel { padding: 20px; }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .topbar h2, .side h2 {
+      font-size: 1.15rem;
+      margin-bottom: 6px;
+      letter-spacing: -0.02em;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: 1px solid rgba(122,240,192,0.16);
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: .2s ease;
+      font-size: .92rem;
+    }
+
+    button:hover { transform: translateY(-1px); background: rgba(255,255,255,0.07); }
+    button.active { background: rgba(0,166,118,0.22); border-color: rgba(122,240,192,0.45); }
+
+    .chart-wrap {
+      position: relative;
+      border-radius: 22px;
+      overflow: hidden;
+      background: linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.015));
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    svg { display: block; width: 100%; height: 620px; }
+
+    .side {
+      padding: 22px;
+      display: grid;
+      gap: 16px;
+      align-self: start;
+      position: sticky;
+      top: 24px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .stat {
+      padding: 14px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.035);
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .stat span {
+      display: block;
+      color: var(--muted);
+      font-size: .78rem;
+      margin-bottom: 6px;
+    }
+
+    .stat strong { font-size: 1.15rem; }
+
+    .car-card {
+      overflow: hidden;
+      border-radius: 22px;
+      border: 1px solid rgba(255,255,255,0.06);
+      background: rgba(255,255,255,0.03);
+    }
+
+    .car-media {
+      aspect-ratio: 16/9;
+      width: 100%;
+      background: #0d1513;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .car-media img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .car-content { padding: 18px; }
+    .year-tag {
+      display: inline-block;
+      color: var(--accent-2);
+      font-weight: 700;
+      font-size: .82rem;
+      letter-spacing: .08em;
+      margin-bottom: 8px;
+    }
+
+    .car-content h3 {
+      font-size: 1.5rem;
+      letter-spacing: -0.03em;
+      margin-bottom: 8px;
+    }
+
+    .car-content p { color: var(--muted); line-height: 1.55; margin-bottom: 16px; }
+
+    .specs {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    .spec {
+      padding: 12px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.035);
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .spec span {
+      display: block;
+      color: var(--muted);
+      font-size: .76rem;
+      margin-bottom: 5px;
+    }
+
+    .legend {
+      padding: 16px 18px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .legend h3 { font-size: 1rem; margin-bottom: 10px; }
+
+    .legend ul {
+      list-style: none;
+      display: grid;
+      gap: 8px;
+      color: var(--muted);
+      font-size: .92rem;
+      line-height: 1.5;
+    }
+
+    .legend li::before {
+      content: "•";
+      color: var(--accent-2);
+      margin-right: 8px;
+      font-weight: 700;
+    }
+
+    .tooltip {
+      position: absolute;
+      pointer-events: none;
+      min-width: 220px;
+      max-width: 280px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(6,13,11,0.96);
+      border: 1px solid rgba(122,240,192,0.16);
+      box-shadow: 0 18px 40px rgba(0,0,0,0.35);
+      color: var(--text);
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity .16s ease, transform .16s ease;
+      z-index: 10;
+      backdrop-filter: blur(12px);
+    }
+
+    .tooltip.visible { opacity: 1; transform: translateY(0); }
+    .tooltip .tt-year {
+      color: var(--accent-2);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      font-size: .75rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .tooltip h4 { margin-bottom: 6px; }
+    .tooltip p { color: var(--muted); font-size: .85rem; line-height: 1.45; margin-bottom: 10px; }
+    .tt-grid { display:grid; grid-template-columns: repeat(2,1fr); gap: 8px; }
+    .tt-grid div { background: rgba(255,255,255,0.04); padding: 8px 10px; border-radius: 12px; font-size: .82rem; }
+    .tt-grid span { display:block; color: var(--muted); font-size: .7rem; margin-bottom: 2px; }
+
+    .axis path, .axis line { stroke: rgba(255,255,255,0.18); }
+    .axis text { fill: rgba(255,255,255,0.74); font-size: 12px; }
+    .grid line { stroke: var(--grid); stroke-dasharray: 4 6; }
+    .grid path { stroke: transparent; }
+    .axis-label { fill: rgba(255,255,255,0.9); font-size: 13px; font-weight: 600; }
+
+    .line-path {
+      fill: none;
+      stroke: url(#lineGradient);
+      stroke-width: 4;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      filter: drop-shadow(0 0 14px rgba(0,166,118,0.28));
+    }
+
+    .point {
+      fill: var(--accent);
+      stroke: #d7fff0;
+      stroke-width: 2;
+      cursor: pointer;
+      filter: drop-shadow(0 0 12px rgba(0,166,118,0.32));
+    }
+
+    .point.dimmed { opacity: .35; }
+    .label { fill: rgba(255,255,255,0.92); font-size: 12px; font-weight: 700; }
+    .focus-ring { fill: none; stroke: #d7fff0; stroke-width: 2; opacity: 0; stroke-dasharray: 5 6; }
+
+    @media (max-width: 1120px) {
+      .page { grid-template-columns: 1fr; }
+      .side { position: static; }
+    }
+
+    @media (max-width: 760px) {
+      body { padding: 18px; }
+      .stats, .specs { grid-template-columns: 1fr; }
+      svg { height: 520px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <div class="eyebrow">Atividade de UX — D3.js</div>
+      <h1>Aston Martin Evolution</h1>
+      <p>
+        Visualização interativa da evolução de modelos icônicos da Aston Martin. Particularmente, meus favoritos (tanto em motorização e som quanto design) são o DB5 e o DBS, sendo o primeiro utilizado por Sean Connery em "Goldfinger" (1964) e o segundo por Daniel Craig em "Casino Royale" (2006), que é potencialmente o melhor filme de ação da história e também meu favorito. </s> O eixo horizontal representa o ano de lançamento, enquanto o eixo vertical alterna entre potência, velocidade máxima e aceleração de 0 a 100 km/h. Ao selecionar um modelo, o painel lateral exibe uma imagem real do carro e suas especificações principais.
+      </p>
+    </section>
+
+    <section class="panel chart-panel">
+      <div class="topbar">
+        <div>
+          <h2>Linha do tempo de performance</h2>
+          <p class="muted">Use hover, clique, zoom e pan para explorar a história da marca.</p>
+        </div>
+        <div class="controls" id="controls">
+          <button class="active" data-metric="hp">Potência (hp)</button>
+          <button data-metric="topSpeed">Velocidade máxima</button>
+          <button data-metric="acceleration">0–100 km/h</button>
+          <button id="resetZoom">Resetar zoom</button>
+        </div>
+      </div>
+
+      <div class="chart-wrap" id="chartWrap">
+        <div class="tooltip" id="tooltip"></div>
+        <svg id="chart" viewBox="0 0 980 620" preserveAspectRatio="xMidYMid meet"></svg>
+      </div>
+    </section>
+
+    <aside class="panel side">
+      <div>
+        <h2>Resumo</h2>
+        <p class="muted">Clique em um ponto para ver a foto do carro e seus dados detalhados.</p>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><span>Modelos</span><strong id="statCount">0</strong></div>
+        <div class="stat"><span>Período</span><strong id="statYears">—</strong></div>
+        <div class="stat"><span>Métrica ativa</span><strong id="statMetric">Potência</strong></div>
+      </div>
+
+      <div class="car-card" id="detailCard">
+        <div class="car-media">
+          <img id="detailImage" alt="Imagem do carro" src="./assets/db5.png" />
+        </div>
+        <div class="car-content">
+          <div class="year-tag" id="detailYear">SELECIONE UM MODELO</div>
+          <h3 id="detailName">Aston Martin</h3>
+          <p id="detailDescription">Escolha um modelo na visualização para ver imagem e informações detalhadas.</p>
+          <div class="specs">
+            <div class="spec"><span>Potência</span><strong id="detailHp">—</strong></div>
+            <div class="spec"><span>Velocidade máxima</span><strong id="detailSpeed">—</strong></div>
+            <div class="spec"><span>0–100 km/h</span><strong id="detailAccel">—</strong></div>
+            <div class="spec"><span>Categoria</span><strong id="detailCategory">—</strong></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="legend">
+        <h3>Legenda e interações</h3>
+        <ul>
+          <li>Cada ponto representa um modelo da Aston Martin.</li>
+          <li>Hover mostra um resumo rápido do veículo.</li>
+          <li>Clique fixa o modelo no painel lateral com foto real.</li>
+          <li>O gráfico aceita zoom com scroll e pan com arraste.</li>
+          <li>Os botões superiores trocam a métrica analisada.</li>
+        </ul>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    const cars = [
+      {
+        name: "DB5",
+        year: 1963,
+        hp: 282,
+        topSpeed: 233,
+        acceleration: 7.1,
+        category: "Grand Tourer",
+        image: "./assets/db5.png",
+        description: "Modelo lendário que consolidou a Aston Martin como símbolo de elegância, luxo e esportividade britânica."
+      },
+      {
+        name: "V8 Vantage",
+        year: 1977,
+        hp: 390,
+        topSpeed: 270,
+        acceleration: 5.4,
+        category: "Sports Car",
+        image: "./assets/v8vantage.png",
+        description: "Um dos grandes ícones da era dos motores V8, com presença marcante e proposta mais agressiva."
+      },
+      {
+        name: "DB7 Vantage",
+        year: 1999,
+        hp: 420,
+        topSpeed: 298,
+        acceleration: 5.0,
+        category: "Grand Tourer",
+        image: "./assets/db7vantage.png",
+        description: "Ajudou a reposicionar a marca globalmente no fim dos anos 1990, com linhas elegantes e motor V12."
+      },
+      {
+        name: "Vanquish",
+        year: 2001,
+        hp: 460,
+        topSpeed: 306,
+        acceleration: 4.8,
+        category: "Grand Tourer",
+        image: "./assets/vanquish2002.png",
+        description: "Mistura de luxo e brutalidade mecânica, tornou-se um dos modelos mais marcantes do início dos anos 2000."
+      },
+      {
+        name: "DBS",
+        year: 2007,
+        hp: 510,
+        topSpeed: 307,
+        acceleration: 4.3,
+        category: "Super GT",
+        image: "./assets/dbs.png",
+        description: "Versão mais agressiva e focada em performance, sem abandonar o refinamento típico da marca."
+      },
+      {
+        name: "One-77",
+        year: 2009,
+        hp: 750,
+        topSpeed: 354,
+        acceleration: 3.7,
+        category: "Hypercar",
+        image: "./assets/one77.png",
+        description: "Produção extremamente limitada, concebido como demonstração máxima de exclusividade e engenharia."
+      },
+      {
+        name: "DB11",
+        year: 2016,
+        hp: 600,
+        topSpeed: 322,
+        acceleration: 3.9,
+        category: "Grand Tourer",
+        image: "./assets/db11_2009.png",
+        description: "Introduziu uma linguagem mais contemporânea de design e um novo patamar de sofisticação aerodinâmica."
+      },
+      {
+        name: "Vantage",
+        year: 2018,
+        hp: 503,
+        topSpeed: 314,
+        acceleration: 3.6,
+        category: "Sports Car",
+        image: "./assets/vantage2024.png",
+        description: "Interpretação moderna do esportivo de entrada da marca, com proposta mais ousada e dinâmica."
+      },
+      {
+        name: "Valkyrie",
+        year: 2021,
+        hp: 1160,
+        topSpeed: 402,
+        acceleration: 2.5,
+        category: "Hypercar",
+        image: "./assets/valkyrie2025.png",
+        description: "Projeto extremo que aproxima um carro de rua da lógica e da aerodinâmica de um carro de competição."
+      }
+    ];
+
+    const metricMeta = {
+      hp: { label: "Potência", unit: "hp", accessor: d => d.hp, axisLabel: "Potência (horsepower)" },
+      topSpeed: { label: "Velocidade", unit: "km/h", accessor: d => d.topSpeed, axisLabel: "Velocidade máxima (km/h)" },
+      acceleration: { label: "0–100", unit: "s", accessor: d => d.acceleration, axisLabel: "Aceleração 0–100 km/h (segundos)" }
+    };
+
+    const svg = d3.select("#chart");
+    const tooltip = d3.select("#tooltip");
+    const chartWrap = document.getElementById("chartWrap");
+
+    const width = 980;
+    const height = 620;
+    const margin = { top: 34, right: 36, bottom: 72, left: 84 };
+    const innerWidth = width - margin.left - margin.right;
+    const innerHeight = height - margin.top - margin.bottom;
+
+    let currentMetric = "hp";
+    let selectedCar = cars[0];
+
+    document.getElementById("statCount").textContent = cars.length;
+    document.getElementById("statYears").textContent = `${d3.min(cars, d => d.year)}–${d3.max(cars, d => d.year)}`;
+
+    svg.append("defs")
+      .append("linearGradient")
+      .attr("id", "lineGradient")
+      .attr("x1", "0%")
+      .attr("x2", "100%")
+      .attr("y1", "0%")
+      .attr("y2", "0%")
+      .selectAll("stop")
+      .data([
+        { offset: "0%", color: "#7af0c0" },
+        { offset: "55%", color: "#00a676" },
+        { offset: "100%", color: "#d7fff0" }
+      ])
+      .enter()
+      .append("stop")
+      .attr("offset", d => d.offset)
+      .attr("stop-color", d => d.color);
+
+    const root = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+    const gridX = root.append("g").attr("class", "grid").attr("transform", `translate(0,${innerHeight})`);
+    const gridY = root.append("g").attr("class", "grid");
+    const axisX = root.append("g").attr("class", "axis").attr("transform", `translate(0,${innerHeight})`);
+    const axisY = root.append("g").attr("class", "axis");
+    const yLabel = root.append("text")
+      .attr("class", "axis-label")
+      .attr("transform", `translate(${-58},${innerHeight / 2}) rotate(-90)`)
+      .attr("text-anchor", "middle");
+    root.append("text")
+      .attr("class", "axis-label")
+      .attr("x", innerWidth / 2)
+      .attr("y", innerHeight + 52)
+      .attr("text-anchor", "middle")
+      .text("Ano de lançamento");
+
+    const plot = root.append("g");
+    const linePath = plot.append("path").attr("class", "line-path");
+    const pointsLayer = plot.append("g");
+    const labelsLayer = plot.append("g");
+    const focusRing = plot.append("circle").attr("class", "focus-ring").attr("r", 18);
+
+    const xScale = d3.scaleLinear()
+      .domain(d3.extent(cars, d => d.year))
+      .range([0, innerWidth]);
+
+    const yScale = d3.scaleLinear().range([innerHeight, 0]);
+
+    function getYDomain(metric) {
+      const vals = cars.map(metricMeta[metric].accessor);
+      const min = d3.min(vals);
+      const max = d3.max(vals);
+
+      if (metric === "acceleration") return [max + 0.6, min - 0.4];
+      const pad = (max - min) * 0.15;
+      return [min - pad, max + pad];
+    }
+
+    function updateDetail(car) {
+      document.getElementById("detailImage").src = car.image;
+      document.getElementById("detailImage").alt = `Imagem do ${car.name}`;
+      document.getElementById("detailYear").textContent = car.year;
+      document.getElementById("detailName").textContent = car.name;
+      document.getElementById("detailDescription").textContent = car.description;
+      document.getElementById("detailHp").textContent = `${car.hp} hp`;
+      document.getElementById("detailSpeed").textContent = `${car.topSpeed} km/h`;
+      document.getElementById("detailAccel").textContent = `${car.acceleration.toFixed(1)} s`;
+      document.getElementById("detailCategory").textContent = car.category;
+    }
+
+    function render(metric = currentMetric, animate = true) {
+      currentMetric = metric;
+      document.getElementById("statMetric").textContent = metricMeta[metric].label;
+      yScale.domain(getYDomain(metric)).nice();
+      yLabel.text(metricMeta[metric].axisLabel);
+
+      const t = svg.transition().duration(850).ease(d3.easeCubicOut);
+
+      axisX.transition(t).call(d3.axisBottom(xScale).tickFormat(d3.format("d")).ticks(8));
+      axisY.transition(t).call(d3.axisLeft(yScale).ticks(6));
+      gridX.transition(t).call(d3.axisBottom(xScale).tickSize(-innerHeight).tickFormat("").ticks(8));
+      gridY.transition(t).call(d3.axisLeft(yScale).tickSize(-innerWidth).tickFormat("").ticks(6));
+
+      const line = d3.line()
+        .x(d => xScale(d.year))
+        .y(d => yScale(metricMeta[metric].accessor(d)))
+        .curve(d3.curveCatmullRom.alpha(0.65));
+
+      linePath.datum(cars).transition(t).attr("d", line);
+
+      if (animate) {
+        requestAnimationFrame(() => {
+          const length = linePath.node().getTotalLength();
+          linePath
+            .attr("stroke-dasharray", `${length} ${length}`)
+            .attr("stroke-dashoffset", length)
+            .transition()
+            .duration(1300)
+            .ease(d3.easeCubicOut)
+            .attr("stroke-dashoffset", 0);
+        });
+      }
+
+      const points = pointsLayer.selectAll("circle.point").data(cars, d => d.name);
+
+      points.enter()
+        .append("circle")
+        .attr("class", "point")
+        .attr("cx", d => xScale(d.year))
+        .attr("cy", innerHeight + 20)
+        .attr("r", 0)
+        .on("mouseover", handleOver)
+        .on("mousemove", handleMove)
+        .on("mouseleave", handleLeave)
+        .on("click", handleClick)
+        .merge(points)
+        .transition(t)
+        .attr("cx", d => xScale(d.year))
+        .attr("cy", d => yScale(metricMeta[metric].accessor(d)))
+        .attr("r", d => selectedCar.name === d.name ? 10 : 7);
+
+      points.exit().remove();
+
+      const labels = labelsLayer.selectAll("text.label").data(cars, d => d.name);
+      labels.enter()
+        .append("text")
+        .attr("class", "label")
+        .attr("text-anchor", "middle")
+        .merge(labels)
+        .transition(t)
+        .attr("x", d => xScale(d.year))
+        .attr("y", d => yScale(metricMeta[metric].accessor(d)) - 14)
+        .text(d => d.name)
+        .attr("opacity", d => selectedCar ? (selectedCar.name === d.name ? 1 : .78) : .78);
+
+      labels.exit().remove();
+
+      highlightSelected();
+    }
+
+    function highlightSelected() {
+      pointsLayer.selectAll("circle.point")
+        .classed("dimmed", d => selectedCar ? d.name !== selectedCar.name : false)
+        .attr("r", d => selectedCar && d.name === selectedCar.name ? 10 : 7);
+
+      labelsLayer.selectAll("text.label")
+        .attr("opacity", d => selectedCar ? (d.name === selectedCar.name ? 1 : .28) : .78);
+
+      if (selectedCar) {
+        focusRing
+          .attr("cx", xScale(selectedCar.year))
+          .attr("cy", yScale(metricMeta[currentMetric].accessor(selectedCar)))
+          .transition()
+          .duration(220)
+          .attr("opacity", 1);
+      }
+    }
+
+    function showTooltip(event, d) {
+      tooltip.html(`
+        <div class="tt-year">${d.year}</div>
+        <h4>${d.name}</h4>
+        <p>${d.description}</p>
+        <div class="tt-grid">
+          <div><span>Potência</span>${d.hp} hp</div>
+          <div><span>Velocidade</span>${d.topSpeed} km/h</div>
+          <div><span>0–100</span>${d.acceleration.toFixed(1)} s</div>
+          <div><span>Categoria</span>${d.category}</div>
+        </div>
+      `);
+      tooltip.classed("visible", true);
+      moveTooltip(event);
+    }
+
+    function moveTooltip(event) {
+      const wrapRect = chartWrap.getBoundingClientRect();
+      const ttRect = tooltip.node().getBoundingClientRect();
+      const x = event.clientX - wrapRect.left + 16;
+      const y = event.clientY - wrapRect.top - ttRect.height - 12;
+      const maxX = wrapRect.width - ttRect.width - 12;
+      tooltip.style("left", `${Math.max(12, Math.min(x, maxX))}px`);
+      tooltip.style("top", `${Math.max(12, y)}px`);
+    }
+
+    function handleOver(event, d) {
+      showTooltip(event, d);
+      if (!selectedCar) {
+        focusRing
+          .attr("cx", xScale(d.year))
+          .attr("cy", yScale(metricMeta[currentMetric].accessor(d)))
+          .attr("opacity", 1);
+      }
+    }
+
+    function handleMove(event) { moveTooltip(event); }
+    function handleLeave() { tooltip.classed("visible", false); }
+    function handleClick(event, d) {
+      selectedCar = d;
+      updateDetail(d);
+      highlightSelected();
+    }
+
+    const zoom = d3.zoom()
+      .scaleExtent([1, 5])
+      .translateExtent([[0, 0], [innerWidth, innerHeight]])
+      .extent([[0, 0], [innerWidth, innerHeight]])
+      .on("zoom", ({ transform }) => {
+        const zx = transform.rescaleX(xScale);
+        axisX.call(d3.axisBottom(zx).tickFormat(d3.format("d")).ticks(8));
+        gridX.call(d3.axisBottom(zx).tickSize(-innerHeight).tickFormat("").ticks(8));
+
+        const line = d3.line()
+          .x(d => zx(d.year))
+          .y(d => yScale(metricMeta[currentMetric].accessor(d)))
+          .curve(d3.curveCatmullRom.alpha(0.65));
+
+        linePath.attr("d", line(cars));
+        pointsLayer.selectAll("circle.point")
+          .attr("cx", d => zx(d.year))
+          .attr("cy", d => yScale(metricMeta[currentMetric].accessor(d)));
+        labelsLayer.selectAll("text.label")
+          .attr("x", d => zx(d.year))
+          .attr("y", d => yScale(metricMeta[currentMetric].accessor(d)) - 14);
+        if (selectedCar) {
+          focusRing
+            .attr("cx", zx(selectedCar.year))
+            .attr("cy", yScale(metricMeta[currentMetric].accessor(selectedCar)));
+        }
+      });
+
+    svg.call(zoom);
+
+    document.querySelectorAll("button[data-metric]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("button[data-metric]").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        render(btn.dataset.metric, false);
+      });
+    });
+
+    document.getElementById("resetZoom").addEventListener("click", () => {
+      svg.transition().duration(650).call(zoom.transform, d3.zoomIdentity);
+    });
+
+    updateDetail(selectedCar);
+    render("hp", true);
+  </script>
+</body>
+</html>
